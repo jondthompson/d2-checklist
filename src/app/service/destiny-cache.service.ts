@@ -1,9 +1,10 @@
 import { HttpClient, HttpEvent, HttpEventType, HttpHeaders, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { cookError, safeStringifyError } from '@app/shared/utilities';
 import { environment as env } from '@env/environment';
 import { del, get, keys, set } from 'idb-keyval';
-import { BehaviorSubject } from 'rxjs';
-import { last, tap } from 'rxjs/operators';
+import { BehaviorSubject, throwError } from 'rxjs';
+import { catchError, last, retry, tap } from 'rxjs/operators';
 
 declare let JSZip: any;
 
@@ -11,11 +12,12 @@ declare let JSZip: any;
 export class DestinyCacheService {
   public cache: Cache;
 
-  public readonly ready: BehaviorSubject<boolean> = new BehaviorSubject(false);
+  public readonly ready$: BehaviorSubject<boolean> = new BehaviorSubject(false);
   public readonly checkingCache: BehaviorSubject<boolean> = new BehaviorSubject(false);
   public readonly percent: BehaviorSubject<number> = new BehaviorSubject(0);
   public readonly unzipping: BehaviorSubject<boolean> = new BehaviorSubject(false);
   public readonly error: BehaviorSubject<string> = new BehaviorSubject(null);
+  public readonly errorDetails: BehaviorSubject<any> = new BehaviorSubject(null);
 
   constructor(private http: HttpClient) {
     this.init();
@@ -24,13 +26,14 @@ export class DestinyCacheService {
   private async init() {
     this.checkingCache.next(true);
     const t0 = performance.now();
-    console.log('Loading cache');
+    const key = 'manifest-' + env.versions.manifest;
+    console.log(`Loading cache ${key}`);
     try {
-      const key = 'manifest-' + env.versions.manifest;
       const manifest = await get(key);
       this.checkingCache.next(false);
       // if nothing found, perhaps version has changed, clear old values
       if (manifest == null) {
+        console.log('No cached value found');
         const ks = await keys();
         for (const k of ks) {
           if (k.toString().startsWith('manifest')) {
@@ -39,16 +42,24 @@ export class DestinyCacheService {
         }
         await this.load(key);
       } else {
-        this.cache = manifest;
+        this.cache = manifest as Cache;
       }
       this.percent.next(100);
-      this.ready.next(true);
+      this.ready$.next(true);
       const t1 = performance.now();
       console.log((t1 - t0) + ' ms to load manifest');
-
-
     } catch (exc) {
-      console.dir(exc);
+      console.log(`Error loading Bungie Manifest DB ${key}`);
+      const s = safeStringifyError(exc);
+      console.log(s);
+      this.errorDetails.next(s);
+      try {
+        console.log('Deleting any existing cache entry');
+        await del(key);
+      } catch (exc2) {
+        console.log('Secondary error deleting cache entry');
+        console.dir(exc2);
+      }
       this.error.next('There was an error loading the Bungie Manifest DB, please refresh the page and try again.');
     }
     finally {
@@ -63,7 +74,7 @@ export class DestinyCacheService {
     const z2f = zip2.file('destiny2.json');
     const data2 = await z2f.async('string');
     this.cache = JSON.parse(data2);
-    this.ready.next(true);
+    this.ready$.next(true);
   }
 
   private showProgress(evt: HttpEvent<any>) {
@@ -84,30 +95,63 @@ export class DestinyCacheService {
       }
     }
   }
-
-  async load(key: string): Promise<void> {
-    console.log('--- load ---');
+  private async download(cacheBuster?: string): Promise<Blob> {
+    console.log(`--- load remote cache ${env.versions.manifest} ---`);
 
     let headers = new HttpHeaders();
     headers = headers
-        .set('Content-Type', 'application/x-www-form-urlencoded');
+      .set('Content-Type', 'application/x-www-form-urlencoded');
     const httpOptions = {
-        headers: headers};
-
-    const req = new HttpRequest<Blob>('GET', '/assets/destiny2.zip?v=' + env.versions.manifest, {
+      headers: headers
+    };
+    let uri = `/assets/destiny2.zip?v=${env.versions.manifest}`;
+    if (cacheBuster && cacheBuster.trim().length > 0) {
+      uri = `/assets/destiny2.zip?v=${env.versions.manifest}-${cacheBuster}`;
+    }
+    console.log(`Downloading zip from URI: ${uri}`);
+    const req = new HttpRequest<Blob>('GET', uri, {
       reportProgress: true,
       responseType: 'blob'
     });
 
-    const r = this.http.request(req).pipe(
+    const finalHttpEvt = await this.http.request(req).pipe(
       tap((evt: HttpEvent<any>) => this.showProgress(evt)),
-      last()
-    );
-    const event = await r.toPromise();
+      retry(1),
+      last(),
+      catchError(err => throwError(cookError(err)))
+    ).toPromise();
+
+    if (finalHttpEvt.type !== HttpEventType.Response) {
+      throw new Error(`Unexpected final http event type ${finalHttpEvt.type}`);
+    }
+    const dl = finalHttpEvt as HttpResponse<Blob>;
     this.percent.next(100);
+    return dl.body;
+  }
+
+
+  async load(key: string, isRetry?: boolean): Promise<void> {
+    let blob = await this.download();
+    // retry if size zero to try to get to the bottom of weird problem
+    if (blob.size == 0) {
+      console.log(`   Retrieved zero length blob, adding cache buster and retrying.`);
+      blob = await this.download('' + new Date().getTime());
+    }
+    console.log(`   Retrieved Blob size ${blob.size}. Beginning unzip...`);
     this.unzipping.next(true);
     try {
-      await this.unzip((event as HttpResponse<Blob>).body);
+      try {
+        await this.unzip(blob);
+      } catch (unzipExc) {
+        console.dir(unzipExc);
+        if (!isRetry) {
+          console.log('Initial error unzipping blob. Retrying...');
+          await this.load(key, true);
+        } else {
+          console.log('Secondary error unzipping blob. Fail');
+          throw unzipExc;
+        }
+      }
       set(key, this.cache);
       return;
     }
@@ -118,7 +162,8 @@ export class DestinyCacheService {
 }
 
 export interface Cache {
-  version?: string;
+  version: string;
+  destiny2CoreSettings: Destiny2CoreSettings;
   Vendor?: any;
   Race?: any;
   Gender?: any;
@@ -131,7 +176,7 @@ export interface Cache {
   Faction?: any;
   Progression?: any;
   PowerCap?: any;
-  InventoryItem?: { [key: string]: InventoryItem };
+  InventoryItem?: { [key: string]: ManifestInventoryItem };
   Stat?: any;
   Objective?: { [key: string]: Objective };
   ActivityModifier?: any;
@@ -151,10 +196,36 @@ export interface Cache {
   PursuitTags?: { [key: string]: string[] };
   Season?: { [key: string]: Season };
   SeasonPass?: { [key: string]: SeasonPass };
-  TagWeights?:  {[key: string]: number};
+  TagWeights?: { [key: string]: number };
 }
 
-export interface InventoryItem {
+
+export interface Destiny2CoreSettings {
+  collectionRootNode: number;
+  badgesRootNode: number;
+  recordsRootNode: number;
+  medalsRootNode: number;
+  metricsRootNode: number;
+  activeTriumphsRootNodeHash: number;
+  activeSealsRootNodeHash: number;
+  legacyTriumphsRootNodeHash: number;
+  legacySealsRootNodeHash: number;
+  medalsRootNodeHash: number;
+  exoticCatalystsRootNodeHash: number;
+  loreRootNodeHash: number;
+  undiscoveredCollectibleImage: string;
+  ammoTypeHeavyIcon: string;
+  ammoTypeSpecialIcon: string;
+  ammoTypePrimaryIcon: string;
+  currentSeasonalArtifactHash: number;
+  currentSeasonHash: number;
+  seasonalChallengesPresentationNodeHash: number;
+  futureSeasonHashes: number[];
+  pastSeasonHashes: number[];
+}
+
+
+export interface ManifestInventoryItem {
   displayProperties: DisplayProperties;
   iconWatermark: string;
   tooltipNotifications: any[];

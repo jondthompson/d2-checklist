@@ -28,12 +28,13 @@ import { Choice, GearToggleComponent, ToggleConfig, ToggleState } from './gear-t
 import { GearUtilitiesDialogComponent } from './gear-utilities-dialog/gear-utilities-dialog.component';
 import { PandaGodrollsService } from '@app/service/panda-godrolls.service';
 import { SeasonBreakdownDialogComponent } from './season-breakdown-dialog/season-breakdown-dialog.component';
+import { SignedOnUserService } from '@app/service/signed-on-user.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-gear',
   templateUrl: './gear.component.html',
-  styleUrls: ['./gear.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./gear.component.scss']
 })
 export class GearComponent extends ChildComponent {
 
@@ -52,6 +53,7 @@ export class GearComponent extends ChildComponent {
     { value: 'is:godroll', desc: 'A god roll in EVERY slot' },
     { value: 'is:fixme', desc: 'Best perk unselected' },
     { value: 'is:light>=', desc: 'Filter by PL' },
+    { value: 'is:prefpoints>=', desc: 'Total of ALL stat pts' },
     { value: 'is:stattotal>=', desc: 'Total of ALL stat pts' },
     { value: 'is:postmaster' },
     { value: 'is:godrollpve', desc: 'Only PVE god rolls' },
@@ -71,6 +73,10 @@ export class GearComponent extends ChildComponent {
     { value: 'is:cap>=' },
     { value: 'is:cap<' },
     { value: 'is:cap>' },
+    { value: 'is:prefpoints<=' },
+    { value: 'is:prefpoints>' },
+    { value: 'is:prefpoints<' },
+    { value: 'is:prefpoints=' },
     { value: 'is:stattotal<=' },
     { value: 'is:stattotal>' },
     { value: 'is:stattotal<' },
@@ -136,6 +142,8 @@ export class GearComponent extends ChildComponent {
   option: TabOption;
 
   sortBy = 'power';
+
+  hideDupes = false;
   sortDesc = true;
   gearToShow: InventoryItem[] = [];
   page = 0;
@@ -452,6 +460,7 @@ export class GearComponent extends ChildComponent {
 
   constructor(storageService: StorageService,
     private bungieService: BungieService,
+    private signedOnUserService: SignedOnUserService,
     private cacheService: DestinyCacheService,
     public iconService: IconService,
     public markService: MarkService,
@@ -483,7 +492,7 @@ export class GearComponent extends ChildComponent {
       this.size = savedSize;
     }
     // selected user changed
-    this.bungieService.selectedUserFeed.pipe(takeUntil(this.unsubscribe$)).subscribe((selectedUser: SelectedUser) => {
+    this.signedOnUserService.signedOnUser$.pipe(takeUntil(this.unsubscribe$)).subscribe((selectedUser: SelectedUser) => {
       this.selectedUser = selectedUser;
       const controllerPref = localStorage.getItem('mnk-vs-controller');
       if (controllerPref != null) {
@@ -569,6 +578,11 @@ export class GearComponent extends ChildComponent {
     this.filterKeyUp.pipe(takeUntil(this.unsubscribe$), debounceTime(150)).subscribe(() => {
       this.parseWildcardFilter();
     });
+  }
+
+  public toggleDupes(hideDupes: boolean) {
+    this.hideDupes = hideDupes;
+    this.filterChanged();
   }
 
   public async shardBlues() {
@@ -755,6 +769,10 @@ export class GearComponent extends ChildComponent {
     if (compResult != null) {
       return compResult;
     }
+    compResult = GearComponent._processComparison('is:prefpoints', actual, i.preferredStatPoints);
+    if (compResult != null) {
+      return compResult;
+    }
     compResult = GearComponent._processComparison('is:stattotal', actual, i.totalStatPoints);
     if (compResult != null) {
       return compResult;
@@ -902,8 +920,6 @@ export class GearComponent extends ChildComponent {
     return returnMe;
   }
 
-
-
   filterGear() {
     if (this._player.getValue() == null) { return; }
     let tempGear = this._player.getValue().gear.filter(i => i.type == this.option.type);
@@ -913,6 +929,9 @@ export class GearComponent extends ChildComponent {
     tempGear = this.toggleFilter(tempGear, debugFilterNotes);
     this.debugFilterNotes = debugFilterNotes;
     GearService.sortGear(this.sortBy, this.sortDesc, tempGear);
+    if (this.hideDupes) {
+      tempGear = GearService.filterDupes(tempGear);
+    }
     const start = this.page * this.size;
     const end = Math.min(start + this.size, tempGear.length);
     if (start >= end) {

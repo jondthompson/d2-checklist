@@ -1,5 +1,5 @@
 
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../service/auth.service';
@@ -8,6 +8,7 @@ import { ChildComponent } from '../../shared/child.component';
 
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-auth',
   templateUrl: './auth.component.html',
   styleUrls: ['./auth.component.scss']
@@ -28,7 +29,13 @@ export class AuthComponent extends ChildComponent implements OnInit, OnDestroy {
       try {
         await this.authService.fetchTokenFromCode(code, state);
         this.statusMsg = 'Successfully logged in...';
-        this.router.navigate(['/home']);
+        const sRoutes = localStorage.getItem('login-target');
+        localStorage.removeItem('login-target');
+        let routes: string[] = ['/home'];
+        if (sRoutes) {
+          routes = JSON.parse(sRoutes);
+        }
+        this.router.navigate(routes);
       } catch (x) {
         this.statusMsg = 'Authentication failed';
         this.errMsg = 'Error: ' + JSON.stringify(x);

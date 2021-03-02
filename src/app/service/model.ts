@@ -1,8 +1,10 @@
+import { BountySetsDialogComponent } from '@app/home/bounty-sets-dialog/bounty-sets-dialog.component';
 import { faGoogle, faPlaystation, faSteam, faWindows, faXbox } from '@fortawesome/free-brands-svg-icons';
 import { faUsers } from '@fortawesome/free-solid-svg-icons';
 import { IconDefinition } from '@fortawesome/pro-light-svg-icons';
 import { Moment } from 'moment';
 import { BehaviorSubject } from 'rxjs';
+import { ManifestInventoryItem } from './destiny-cache.service';
 
 export const BUCKET_WEAPON_KINETIC = 1498876634;
 export const BUCKET_WEAPON_ENERGY = 2465295065;
@@ -23,7 +25,7 @@ export const BUCKETS_ALL_POWER = [BUCKET_WEAPON_KINETIC, BUCKET_WEAPON_ENERGY,
     BUCKET_ARMOR_CHEST, BUCKET_ARMOR_LEG, BUCKET_ARMOR_CLASS
 ];
 
-export const TAG_WEIGHTS: {[key: string]: number} = {
+export const TAG_WEIGHTS: { [key: string]: number } = {
     'warmind bits': 5.0,
     'gambit': 0.25,
     'crucible': 0.5,
@@ -90,7 +92,9 @@ export enum ItemType {
     Package = 25,
     Bounty = 26,
     MissionArtifact = 97, // custom
-    GearMod = 99  // custom added
+    GearMod = 99,  // custom added
+    Shader = 100,  // custom added
+    CurrencyExchange = 101  // custom added
 }
 
 export enum ItemState {
@@ -129,6 +133,11 @@ export interface MasterworkInfo {
 }
 
 export interface RecordSeason {
+    name: string;
+    records: TriumphRecordNode[];
+}
+
+export interface SeasonalChallengeEntry {
     name: string;
     records: TriumphRecordNode[];
 }
@@ -212,6 +221,7 @@ export interface TriumphRecordNode extends TriumphNode {
     invisible: boolean;
     pointsToBadge: boolean;
     badge?: Badge;
+    rewardItems: NameQuantity[];
 }
 
 export interface TriumphCollectibleNode extends TriumphNode {
@@ -231,30 +241,8 @@ export interface NameQuantity {
     hash: string;
     name: string;
     quantity: number;
-}
-
-export interface SaleItem {
-    tags?: string[];
-    vendor: Vendor;
-    hash: string;
-    name: string;
-    desc: string;
-    icon: string;
-    type: ItemType;
-    tierType: number;
-    status: string;
-    itemTypeAndTierDisplayName: string;
-    itemTypeDisplayName: string;
-    quantity: number;
-    objectives: ItemObjective[];
-    stats: InventoryStat[];
-    preferredStatPoints?: number;
-    totalStatPoints?: number;
-    classAllowed: ClassAllowed;
-    values: NameQuantity[];
-    costs: NameQuantity[];
-    searchText: string;
-    lowLinks?: LowLinks;
+    icon?: string;
+    itemTypeDisplayName?: string;
 }
 
 export interface ItemPerks {
@@ -283,7 +271,7 @@ export interface PublicMilestone {
     icon: string;
     activities: MilestoneActivity[];
     rewards: string;
-    pl: number;
+    boost: BoostInfo;
     milestoneType: number;
     type?: string;
     dependsOn: string[];
@@ -304,6 +292,10 @@ export interface MilestoneActivity {
     icon: string;
     modifiers: NameDesc[];
     specialLoot?: ItemDisplay;
+}
+
+export interface LegendLostSectorActivity extends MilestoneActivity {
+    info: LostSectorInfo;
 }
 
 export interface PrivPublicMilestone {
@@ -404,13 +396,13 @@ export interface BountySet {
     type: string;
     tag: string;
     score: number;
-    bounties: (SaleItem|InventoryItem)[];
+    bounties: InventoryItem[];
 }
 
 export class SelectedUser {
     userInfo: UserInfo;
     currencies$: BehaviorSubject<Currency[]> = new BehaviorSubject([]);
-    gearMeta$: BehaviorSubject<GearMeta> = new BehaviorSubject(null);
+    gearMeta$: BehaviorSubject<GearMetaData> = new BehaviorSubject(null);
     clans: BehaviorSubject<ClanRow[]> = new BehaviorSubject([]);
     membership: BungieMembership;
     promptForPlatform = false;
@@ -427,7 +419,7 @@ export class BungieGroupMember {
     player$: BehaviorSubject<Player> = new BehaviorSubject(null);
     errorMsg: string;
 
-    currentPlayer(): Player|null {
+    currentPlayer(): Player | null {
         return this.player$.getValue();
     }
 
@@ -444,7 +436,7 @@ export class FriendListEntry {
     player$: BehaviorSubject<Player> = new BehaviorSubject(null);
     errorMsg$: BehaviorSubject<string> = new BehaviorSubject(null);
 
-    currentPlayer(): Player|null {
+    currentPlayer(): Player | null {
         return this.player$.getValue();
     }
 }
@@ -576,7 +568,7 @@ export class Player {
     readonly shared: Target;
     readonly raidChecked = false;
     readonly title;
-    readonly seasons: RecordSeason[];
+    readonly seasonChallengeEntries: SeasonalChallengeEntry[];
     readonly hasHiddenClosest: boolean;
     readonly accountProgressions: Progression[];
     readonly glory: Progression;
@@ -586,7 +578,7 @@ export class Player {
     readonly artifactPowerBonus: number;
     readonly transitoryData: ProfileTransitoryData;
     readonly minsPlayed: number;
-    readonly gearMeta: GearMeta;
+    readonly gearMetaData: GearMetaData;
     maxLL = 0;
     maxLLFraction?: Fraction;
     aggHistory: AggHistoryEntry[] = [];
@@ -602,9 +594,9 @@ export class Player {
         lowHangingTriumphs: TriumphRecordNode[], searchableTriumphs: TriumphRecordNode[],
         searchableCollection: TriumphCollectibleNode[],
         seals: Seal[], badges: Badge[],
-        title: string, seasons: RecordSeason[], hasHiddenClosest: boolean,
+        title: string, seasonChallengeEntries: SeasonalChallengeEntry[], hasHiddenClosest: boolean,
         accountProgressions: Progression[], artifactPowerBonus: number, transitoryData: ProfileTransitoryData,
-        specialAccountProgressions: SpecialAccountProgressions, gearMeta: GearMeta) {
+        specialAccountProgressions: SpecialAccountProgressions, gearMeta: GearMetaData) {
         this.profile = profile;
         this.characters = characters;
         this.currentActivity = currentActivity;
@@ -640,7 +632,7 @@ export class Player {
         this.seals = seals;
         this.badges = badges;
         this.title = title;
-        this.seasons = seasons;
+        this.seasonChallengeEntries = seasonChallengeEntries;
         this.hasHiddenClosest = hasHiddenClosest;
         this.accountProgressions = accountProgressions;
         this.artifactPowerBonus = artifactPowerBonus;
@@ -651,7 +643,7 @@ export class Player {
             this.valor = specialAccountProgressions.valor;
             this.seasonRank = specialAccountProgressions.seasonRank;
         }
-        this.gearMeta = gearMeta;
+        this.gearMetaData = gearMeta;
     }
 
     public getWeeklyXp(): number {
@@ -660,8 +652,9 @@ export class Player {
 }
 
 export class InventoryItem {
+    vendorItemInfo?: VendorItemInfo;
     tags?: string[];
-    readonly id: string;
+    id: string;
     readonly hash: string;
     readonly name: string;
     equipped: BehaviorSubject<boolean>;
@@ -695,6 +688,7 @@ export class InventoryItem {
     readonly energyUsed: number;
     readonly totalStatPoints: number;
     public searchText: string;
+    public isHighest = false;
     public markLabel: string;
     public mark: string;
     public notes: string;
@@ -719,9 +713,9 @@ export class InventoryItem {
     public coveredSeasons?: number[];
     readonly redacted: boolean;
     readonly specialModSockets: string[];
-
+    readonly collectibleHash: string;
     public lowLinks: LowLinks;
-    // more to come, locked other stuff
+    readonly versionNumber: number;
 
     damageTypeString(): string {
         return DamageType[this.damageType];
@@ -739,9 +733,9 @@ export class InventoryItem {
         bucketOrder: number, aggProgress: number, values: NameQuantity[], expirationDate: string,
         locked: boolean, masterworked: boolean, masterwork: MasterworkInfo, mods: InventoryPlug[], tracked: boolean,
         questline: Questline, searchText: string, inventoryBucket: ApiInventoryBucket, tier: string, options: Target[],
-        isRandomRoll: boolean, ammoType: DestinyAmmunitionType, postmaster: boolean, energyUsed?: number,
-        energyCapacity?: number, totalStatPoints?: number, seasonalModSlot?: number, coveredSeasons?: number[], powerCap?: number, redacted?: boolean,
-        specialModSockets?: string[]
+        isRandomRoll: boolean, ammoType: DestinyAmmunitionType, postmaster: boolean, energyUsed: number,
+        energyCapacity: number, totalStatPoints: number, seasonalModSlot: number, coveredSeasons: number[], powerCap: number, redacted: boolean,
+        specialModSockets: string[], collectibleHash: string, versionNumber: number
     ) {
         this.id = id;
         this.hash = hash;
@@ -796,6 +790,8 @@ export class InventoryItem {
         this.powerCap = powerCap;
         this.redacted = redacted;
         this.specialModSockets = specialModSockets;
+        this.collectibleHash = collectibleHash;
+        this.versionNumber = versionNumber;
     }
 }
 
@@ -812,7 +808,7 @@ export class Currency {
     }
 }
 
-export interface GearMeta {
+export interface GearMetaData {
     postmaster: CharPostmasterMeta[];
     vault: VaultMeta;
     postmasterTotal: number;
@@ -841,7 +837,7 @@ export class MilestoneStatus {
     readonly readyToCollect: boolean;
 
     constructor(hash: string, complete: boolean, pct: number, info: string, suppInfo: string[],
-            phases: boolean[], locked: boolean, tooLowPower: boolean, readyToCollect?: boolean) {
+        phases: boolean[], locked: boolean, tooLowPower: boolean, readyToCollect?: boolean) {
         this.hash = hash;
         this.complete = complete;
         this.pct = pct;
@@ -858,7 +854,7 @@ export interface MileStoneName {
     key: string;
     resets: string;
     rewards: string;
-    pl: number;
+    boost: BoostInfo;
     name: string;
     desc: string;
     hasPartial: boolean;
@@ -904,7 +900,9 @@ export class Character extends Target {
     readonly className: string;
     light: number;
     lightFraction?: Fraction;
+    basePL: number = 0;
     basePLString?: string;
+    bestPlGear: { [key: string]: InventoryItem } = {};
 
     dateLastPlayed: string;
     minutesPlayedThisSession: string;
@@ -984,7 +982,7 @@ export interface AggHistoryEntry {
     activityBestSingleGameScore: number; // this is a personal score, NOT team score, useless
     fastestCompletionMsForActivity: number;
     activityCompletions: number;
-    charCompletions:  CharCompletions[];
+    charCompletions: CharCompletions[];
     efficiency: number;
 
     activityKills: number;
@@ -1248,79 +1246,169 @@ export class Const {
         '1': Const.XBL_PLATFORM,
         '2': Const.PSN_PLATFORM,
         '3': Const.STEAM_PLATFORM,
-        '4': Const.BNET_PLATFORM,
+        // '4': Const.BNET_PLATFORM,
         '5': Const.STADIA_PLATFORM
     };
 
     public static readonly MISSION_ARTIFACT_KEY = '22222222';
-    public static readonly HERESY_KEY = '33333333';
-    public static readonly PROPHECY_KEY = '44444444';
-    public static readonly MASTER_EMPIRE_HUNT = '55555555';
-    public static readonly UNKNOWN_BOOST = 0;
-    public static readonly NO_BOOST = 1;
-    public static readonly LOW_BOOST = 2;
-    public static readonly MID_BOOST = 3;
-    public static readonly WEAK_HIGH_BOOST = 4;
-    public static readonly HIGH_BOOST = 5;
+    public static readonly PSUEDO_HERESY_KEY = 'PSUEDO-HERESY';
+    // public static readonly PROPHECY_KEY = '44444444';
+    public static readonly PSUEDO_MASTER_EMPIRE_HUNT = 'PSUEDO_MASTER_EMPIRE';
+    public static readonly PSUEDO_BATTLEGROUND_3 = 'PSUEDO-BG-3';
+    public static readonly PSUEDO_BATTLEGROUND_6 = 'PSUEDO-BG-6';
+    public static readonly PSUEDO_BATTLEGROUND_9 = 'PSUEDO-BG-9';
 
-    public static readonly LIGHT_TOO_LOW = 1199;
+    public static readonly LIGHT_TOO_LOW = 1249; // update me
+    private static readonly SEASON_SOFT_CAP = 1250; // update me
+    public static readonly SEASON_HARD_CAP = 1300; // update me
+    public static readonly SEASON_PINNACLE_CAP = 1310; // update me
 
-    private static readonly SEASON_SOFT_CAP = 1200;
-    private static readonly SEASON_HARD_CAP = 1250;
-    private static readonly SEASON_PINNACLE_CAP = 1260;
 
-    public static readonly BOOSTS: DropInfo[] = [
-        {
-            level: Const.UNKNOWN_BOOST,
-            min: 0,
-            max: 1,
-            softCap: Const.SEASON_SOFT_CAP,
-            hardCap: Const.SEASON_HARD_CAP
+    public static readonly BOOST_UNKNOWN = 'BOOST_UNKNOWN';
+    public static readonly BOOST_SEASON_PASS = 'BOOST_SEASON_PASS';
+    public static readonly BOOST_LEGENDARY = 'BOOST_LEGENDARY';
+    public static readonly BOOST_POWERFUL_1 = 'BOOST_POWERFUL_1';
+    public static readonly BOOST_POWERFUL_2 = 'BOOST_POWERFUL_2';
+    public static readonly BOOST_POWERFUL_3 = 'BOOST_POWERFUL_3';
+    public static readonly BOOST_PINNACLE_WEAK = 'BOOST_PINNACLE_WEAK';
+    public static readonly BOOST_PINNACLE = 'BOOST_PINNACLE';
+
+    public static readonly BOOST_DROP_TABLE: { [key: string]: BoostInfo } = {
+        'BOOST_UNKNOWN': {
+            key: Const.BOOST_UNKNOWN,
+            name: 'Unknown',
+            hideFromTable: true,
+            sortVal: -10,
+            upToHardCap: {
+                bonus: 0,
+                min: 0,
+                max: 0
+            },
+            afterHardCap: {
+                bonus: 0,
+                min: 0,
+                max: 0
+            },
+            cappedAt: Const.SEASON_HARD_CAP
         },
-        {
-            level: Const.NO_BOOST,
-            min: -3,
-            max: 0,
-            softCap: Const.SEASON_SOFT_CAP,
-            hardCap: Const.SEASON_HARD_CAP
+        'BOOST_LEGENDARY': {
+            key: Const.BOOST_UNKNOWN,
+            name: 'Legendary',
+            sortVal: 0,
+            upToHardCap: {
+                bonus: 0,
+                min: -3,
+                max: 0
+            },
+            afterHardCap: null,
+            cappedAt: Const.SEASON_HARD_CAP
         },
-        {
-            level: Const.LOW_BOOST,
-            min: 3,
-            max: 3,
-            softCap: Const.SEASON_SOFT_CAP,
-            hardCap: Const.SEASON_HARD_CAP
+        'BOOST_SEASON_PASS': {
+            key: Const.BOOST_SEASON_PASS,
+            name: 'Season Pass',
+            sortVal: 5,
+            upToHardCap: {
+                bonus: 0,
+                min: 0,
+                max: 0
+            },
+            afterHardCap: {
+                bonus: 0,
+                min: 0,
+                max: 0
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
         },
-        {
-            level: Const.MID_BOOST,
-            min: 4,
-            max: 4,
-            softCap: Const.SEASON_SOFT_CAP,
-            hardCap: Const.SEASON_HARD_CAP
+        'BOOST_PRIME': {
+            key: Const.BOOST_POWERFUL_1,
+            name: 'Prime Engram',
+            sortVal: 7,
+            upToHardCap: {
+                bonus: 3
+            },
+            afterHardCap: {
+                bonus: 0
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
         },
-        {
-            level: Const.WEAK_HIGH_BOOST,
-            min: 1,
-            max: 1,
-            softCap: Const.SEASON_PINNACLE_CAP,
-            hardCap: Const.SEASON_PINNACLE_CAP
+        'BOOST_POWERFUL_1': {
+            key: Const.BOOST_POWERFUL_1,
+            name: 'Powerful (Tier 1)',
+            sortVal: 10,
+            upToHardCap: {
+                bonus: 3
+            },
+            afterHardCap: {
+                bonus: 0
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
         },
-        {
-            level: Const.HIGH_BOOST,
-            min: 2,
-            max: 2,
-            softCap: Const.SEASON_PINNACLE_CAP,
-            hardCap: Const.SEASON_PINNACLE_CAP
+        'BOOST_POWERFUL_2': {
+            key: Const.BOOST_POWERFUL_2,
+            name: 'Powerful (Tier 2)',
+            sortVal: 20,
+            upToHardCap: {
+                bonus: 4
+            },
+            afterHardCap: {
+                bonus: 0
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
+        },
+        'BOOST_POWERFUL_3': {
+            key: Const.BOOST_POWERFUL_3,
+            name: 'Powerful (Tier 3)',
+            sortVal: 30,
+            upToHardCap: {
+                bonus: 5
+            },
+            afterHardCap: {
+                bonus: 0
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
+        },
+        'BOOST_PINNACLE_WEAK': {
+            key: Const.BOOST_PINNACLE_WEAK,
+            name: 'Pinnacle (Weak)',
+            sortVal: 40,
+            upToHardCap: {
+                bonus: 3
+            },
+            afterHardCap: {
+                bonus: 1
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
+        },
+        'BOOST_PINNACLE': {
+            key: Const.BOOST_PINNACLE,
+            name: 'Pinnacle',
+            sortVal: 50,
+            upToHardCap: {
+                bonus: 5
+            },
+            afterHardCap: {
+                bonus: 2
+            },
+            cappedAt: Const.SEASON_PINNACLE_CAP
         }
-    ];
+    };
 }
 
-export interface DropInfo {
-    level: number;
-    min: number;
-    max: number;
-    softCap: number;
-    hardCap: number;
+
+export interface BoostInfo {
+    key: string;
+    name: string;
+    hideFromTable?: boolean;
+    sortVal: number;
+    upToHardCap: Bonus;
+    afterHardCap: Bonus;
+    cappedAt: number;
+}
+
+export interface Bonus {
+    bonus: number;
+    min?: number;
+    max?: number;
 }
 
 export class InventoryStat {
@@ -1371,6 +1459,7 @@ export class InventoryPlug {
     readonly active: boolean;
     readonly enabled: boolean;
     readonly objectives: ItemObjective[];
+    public currentlyCanRoll: boolean;
     public pandaPve = 0;
     public pandaPvp = 0;
 
@@ -1391,6 +1480,7 @@ export class InventoryPlug {
         } else {
             this.objectives = [];
         }
+        this.currentlyCanRoll = true;
     }
 }
 
@@ -1484,3 +1574,63 @@ export interface ApiItemTierType {
     infusionProcess: any;
     redacted: boolean;
 }
+
+export interface CharacterVendorData {
+    char: Character;
+    data: InventoryItem[];
+    cached: boolean;
+    ts?: number;
+    loading?: boolean;
+}
+
+export interface VendorCost {
+    desc: ManifestInventoryItem;
+    count: number;
+}
+
+export interface VendorItemInfo {
+    tags?: string[];
+    vendor: Vendor;
+    status: string;
+    quantity: number;
+    values: NameQuantity[];
+    costs: VendorCost[];
+    objectives: ItemObjective[];
+    searchText: string;
+}
+
+
+
+export interface LostSector {
+    activity: LegendLostSectorActivity;
+    icon: string;
+    soloReward: string;
+    special: boolean;
+}
+
+export interface LostSectorInfo {
+    abbrev: string;
+    hash: string;
+    shields: string[];
+    champions: Champion[];
+}
+
+
+interface Champion {
+    name: string;
+    count: number;
+}
+
+
+
+// export interface VendorInventoryItem {
+//     tags?: string[];
+//     vendor: Vendor;
+//     status: string;
+//     quantity: number;
+//     values: NameQuantity[];
+//     costs: NameQuantity[];
+//     objectives: ItemObjective[];
+//     data: InventoryItem;
+//     searchText: string;
+// }

@@ -1,0 +1,37 @@
+<h3>
+    Exchange
+    <span class="fake-link pad-left-more" (click)="signedOnUserService.refreshPlayer()">
+        <fa-icon [icon]="iconService.fasSyncAlt"  [spin]="signedOnUserService.playerLoading$|async"></fa-icon>
+    </span>
+</h3>
+<div class="flex-row">
+    <div *ngFor="let vd of vendorDeals.exchange">
+        <h4>{{vd.vendor.name}}</h4>
+        <table class="tidy-auto-table">
+            <thead>
+                <tr>
+                    <th>Buy</th>
+                    <th>You Have</th>
+                    <th>Cost</th>
+                    <th>You Have</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let c of vd.data">
+                    <td>
+                        <d2c-manifest-item-icon [desc]="c.target" [small]="true"></d2c-manifest-item-icon>
+                        <div class="deal-label">
+                            <span *ngIf="c.saleItem.vendorItemInfo.quantity>1">{{c.saleItem.vendorItemInfo.quantity|number}} </span>
+                            {{c.target.displayProperties.name}}</div>
+                    </td>
+                    <td>{{c.targetCount|number}}</td>
+                    <td>
+                        <d2c-manifest-item-icon [desc]="c.cost.desc" [small]="true"></d2c-manifest-item-icon>
+                        <div class="deal-label">{{c.cost.count|number}} {{c.cost.desc.displayProperties.name}}</div>
+                    </td>
+                    <td>{{c.costCount|number}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -4,6 +4,7 @@ import { Player, SearchResult, SelectedUser, TriumphRecordNode, Platform, Const,
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { StorageService } from '@app/service/storage.service';
+import { SignedOnUserService } from '@app/service/signed-on-user.service';
 
 @Injectable({
   providedIn: 'root'
@@ -127,12 +128,13 @@ export class PlayerStateService {
 
   constructor(
     private storageService: StorageService,
+    private signedOnUserService: SignedOnUserService,
     private bungieService: BungieService) {
     this.player = this._player.pipe(map(val => {
       PlayerStateService.sortMileStones(val, this.sort);
       return val;
     }));
-    this.bungieService.selectedUserFeed.pipe().subscribe((selectedUser: SelectedUser) => {
+    this.signedOnUserService.signedOnUser$.pipe().subscribe((selectedUser: SelectedUser) => {
       this._isSignedOn.next(selectedUser != null);
       this.checkSignedOnCurrent(this.currPlayer());
     });
@@ -160,7 +162,7 @@ export class PlayerStateService {
   }
 
   private checkSignedOnCurrent(currentPlayer: Player) {
-    const a = this.bungieService.selectedUser;
+    const a = this.signedOnUserService.signedOnUser$.getValue();
     let isCurrent = false;
     if (a != null && currentPlayer != null) {
       if (currentPlayer.profile.userInfo.membershipId == a.userInfo.membershipId) {
@@ -193,8 +195,8 @@ export class PlayerStateService {
       this.applyTrackedTriumphs(x);
       this.applyTrackedPursuits(x);
       x.milestoneList.sort((a, b) => {
-        if (a.pl < b.pl) { return 1; }
-        if (a.pl > b.pl) { return -1; }
+        if (a.boost.sortVal < b.boost.sortVal) { return 1; }
+        if (a.boost.sortVal > b.boost.sortVal) { return -1; }
         if (a.rewards < b.rewards) { return 1; }
         if (a.rewards > b.rewards) { return -1; }
         if (a.name > b.name) { return 1; }
@@ -223,8 +225,8 @@ export class PlayerStateService {
     if (player == null || player.milestoneList == null) { return; }
     if (sort === 'rewardsDesc') {
       player.milestoneList.sort((a, b) => {
-        if (a.pl < b.pl) { return 1; }
-        if (a.pl > b.pl) { return -1; }
+        if (a.boost.sortVal < b.boost.sortVal) { return 1; }
+        if (a.boost.sortVal > b.boost.sortVal) { return -1; }
         if (a.rewards < b.rewards) { return 1; }
         if (a.rewards > b.rewards) { return -1; }
         if (a.name > b.name) { return 1; }
@@ -233,8 +235,8 @@ export class PlayerStateService {
       });
     } else if (sort === 'rewardsAsc') {
       player.milestoneList.sort((a, b) => {
-        if (a.pl < b.pl) { return -1; }
-        if (a.pl > b.pl) { return 1; }
+        if (a.boost.sortVal < b.boost.sortVal) { return -1; }
+        if (a.boost.sortVal > b.boost.sortVal) { return 1; }
         if (a.rewards < b.rewards) { return -1; }
         if (a.rewards > b.rewards) { return 1; }
         if (a.name > b.name) { return 1; }
@@ -296,7 +298,7 @@ export class PlayerStateService {
     this.storageService.untrackHashList('trackedpursuits', n.hash);
   }
 
-  // TODO use this once it works on enough things to be worthwhile
+  // use this once it works on enough things to be worthwhile
   // public async gameTrackPursuit(n: InventoryItem, tracked: boolean) {
   //   console.log(`GameTrack ${n.name} ${tracked}`);
   //   const membershipType = this.currPlayer().profile.userInfo.membershipType;

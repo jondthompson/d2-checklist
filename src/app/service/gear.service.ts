@@ -7,6 +7,7 @@ import { Character, ClassAllowed, InventoryItem, ItemType, Player, SelectedUser,
 import { NotificationService } from './notification.service';
 import { PandaGodrollsService } from './panda-godrolls.service';
 import { PreferredStatService } from './preferred-stat.service';
+import { SignedOnUserService } from './signed-on-user.service';
 
 interface VaultStatus {
     isFull: boolean;
@@ -115,8 +116,24 @@ export class GearService {
         }
     }
 
+    public static filterDupes(tempGear: InventoryItem[]) {
+        const gearHashes: { [key: string]: boolean; } = {};
+        const returnMe: InventoryItem[] = [];
+
+        for (const i of tempGear) {
+            if (!gearHashes[i.hash]) {
+                gearHashes[i.hash] = true;
+                returnMe.push(i);
+            } else if (i.type == ItemType.ExchangeMaterial) {
+                returnMe.push(i);
+            }
+        }
+        return returnMe;
+    }
+
     constructor(private bungieService: BungieService,
         public markService: MarkService,
+        private signedOnUserService: SignedOnUserService,
         private notificationService: NotificationService,
         private bucketService: BucketService,
         private pandaService: PandaGodrollsService,
@@ -132,8 +149,8 @@ export class GearService {
                 'ItemInstances', 'ItemPerks', 'ItemStats', 'ItemSockets', 'ItemPlugStates',
                 'ItemTalentGrids', 'ItemCommonData', 'ProfileInventories', 'ItemReusablePlugs', 'ItemPlugObjectives'], false, true);
             // update gear counts on title bar
-            this.bungieService.selectedUser.gearMeta$.next(player.gearMeta);
-            // this.bungieService.selectedUser.currencies$.next(player.currencies);
+            this.signedOnUserService.gearMetadata$.next(player.gearMetaData);
+            this.signedOnUserService.currencies$.next(player.currencies);
             const gearById: { [key: string]: InventoryItem[]; } = {};
             for (const g of player.gear) {
                 this.canEquip(g);
@@ -242,9 +259,11 @@ export class GearService {
         let tagCount = 0;
         for (const item of player.gear) {
             if (item.tier == 'Rare' && item.mark == null && (item.type == ItemType.Weapon || item.type == ItemType.Armor)) {
-                item.mark = 'junk';
-                this.markService.updateItem(item);
-                tagCount++;
+                if (!item.isHighest) {
+                    item.mark = 'junk';
+                    this.markService.updateItem(item);
+                    tagCount++;
+                }
             }
         }
         this.notificationService.success(`Tagged ${tagCount} unmarked blues as junk. Starting blue shard mode.`);

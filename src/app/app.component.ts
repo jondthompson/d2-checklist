@@ -16,13 +16,14 @@ import { ClanRow, Const, SelectedUser, UserInfo } from './service/model';
 import { NotificationService } from './service/notification.service';
 import { StorageService } from './service/storage.service';
 import { PwaService } from './service/pwa.service';
+import { SignedOnUserService } from './service/signed-on-user.service';
 
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   private unsubscribe$: Subject<void> = new Subject<void>();
@@ -37,7 +38,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   disableads: boolean; // for GA
   // signed on info
 
-  public loggingOn: BehaviorSubject<boolean> = new BehaviorSubject(true);
   public signedOnUser: BehaviorSubject<SelectedUser> = new BehaviorSubject(null);
 
   public showInstallButton: BehaviorSubject<boolean> = new BehaviorSubject(false);
@@ -48,6 +48,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     public authGuard: AuthGuard,
+    public signedOnUserService: SignedOnUserService,
     public iconService: IconService,
     private notificationService: NotificationService, private storageService: StorageService,
     private authService: AuthService,
@@ -186,9 +187,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
-    this.bungieService.selectedUserFeed.pipe(takeUntil(this.unsubscribe$)).subscribe((selectedUser: SelectedUser) => {
+    this.signedOnUserService.signedOnUser$.pipe(takeUntil(this.unsubscribe$)).subscribe((selectedUser: SelectedUser) => {
       this.signedOnUser.next(selectedUser);
-      this.loggingOn.next(false);
       if (selectedUser == null) { return; }
       if (selectedUser.promptForPlatform === true) {
         selectedUser.promptForPlatform = false;
@@ -245,7 +245,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   selectUser(user) {
-    this.bungieService.selectUser(user);
+    this.signedOnUserService.selectUser(user);
     this.ref.markForCheck();
   }
 
@@ -262,6 +262,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-success-snack',
   templateUrl: 'snackbars/success.html',
   styleUrls: ['snackbars/success.css']
@@ -274,6 +275,7 @@ export class SuccessSnackbarComponent {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-info-snack',
   templateUrl: 'snackbars/info.html',
   styleUrls: ['snackbars/info.css'],
@@ -286,6 +288,7 @@ export class InfoSnackbarComponent {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-warn-snack',
   templateUrl: 'snackbars/warn.html',
   styleUrls: ['snackbars/warn.css']
@@ -298,6 +301,7 @@ export class WarnSnackbarComponent {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-select-platform-dialog',
   templateUrl: './select-platform-dialog.component.html',
 })

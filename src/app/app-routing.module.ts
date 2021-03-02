@@ -2,7 +2,6 @@ import { Injectable, NgModule } from '@angular/core';
 import { CanActivate, RouterModule } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { filter } from 'rxjs/operators';
-
 import { AboutComponent } from './about';
 import { AuthComponent } from './auth';
 import { BungieSearchComponent } from './bungie-search';
@@ -10,7 +9,7 @@ import { ClanComponent } from './clan';
 import { ClanSearchComponent } from './clan-search';
 import { ClanBadgesComponent } from './clan/clan-collections/clan-badges/clan-badges.component';
 import {
-  ClanCollectionSearchComponent,
+  ClanCollectionSearchComponent
 } from './clan/clan-collections/clan-collection-search/clan-collection-search.component';
 import { ClanCollectionsComponent } from './clan/clan-collections/clan-collections.component';
 import { ClanInfoComponent } from './clan/clan-info/clan-info.component';
@@ -26,7 +25,7 @@ import { FriendsComponent } from './friends';
 import { GamerTagSearchComponent } from './gamer-tag-search/gamer-tag-search.component';
 import { GearComponent } from './gear';
 import { HistoryComponent } from './history';
-import { HomeComponent } from './home';
+import { HomeComponent } from './home/home.component';
 import { PartyComponent } from './party/party.component';
 import { PGCRComponent } from './pgcr';
 import { PlayerComponent } from './player';
@@ -50,14 +49,13 @@ import { TriumphSeasonsComponent } from './player/triumphs/triumph-seasons/trium
 import { TriumphTrackedComponent } from './player/triumphs/triumph-tracked/triumph-tracked.component';
 import { TriumphTreeComponent } from './player/triumphs/triumph-tree/triumph-tree.component';
 import { TriumphsComponent } from './player/triumphs/triumphs.component';
+import { PrivacyComponent } from './privacy/privacy.component';
 import { RecentPlayersComponent } from './recent-players';
-import { ResourcesComponent } from './resources';
 import { DestinyCacheService } from './service/destiny-cache.service';
 import { SettingsComponent } from './settings';
-import { ContentVaultComponent } from './content-vault/content-vault.component';
-import { ContentVaultSearchComponent } from './content-vault-search/content-vault-search.component';
-import { PrivacyComponent } from './privacy/privacy.component';
 import { TestbedComponent } from './testbed/testbed.component';
+import { VendorsContainerComponent } from './vendors/vendors-container/vendors-container.component';
+
 
 
 @Injectable()
@@ -68,7 +66,7 @@ export class AuthGuard implements CanActivate {
   }
 
   canActivate(): Observable<boolean> {
-    return this.destinyCacheService.ready.asObservable().pipe(filter(x => x === true));
+    return this.destinyCacheService.ready$.asObservable().pipe(filter(x => x === true));
   }
 }
 
@@ -88,11 +86,13 @@ export class AuthGuard implements CanActivate {
     {
       path: 'auth',
       pathMatch: 'full',
+      canActivate: [AuthGuard],
       component: AuthComponent
     },
     {
       path: 'test',
       pathMatch: 'full',
+      canActivate: [AuthGuard],
       component: TestbedComponent
     },
     {
@@ -114,7 +114,7 @@ export class AuthGuard implements CanActivate {
       pathMatch: 'full',
       canActivate: [AuthGuard],
       component: FriendsComponent
-    }, 
+    },
     {
       path: 'gear',
       redirectTo: 'gear/weapons',
@@ -125,7 +125,7 @@ export class AuthGuard implements CanActivate {
       pathMatch: 'full',
       canActivate: [AuthGuard],
       component: GearComponent
-    }, 
+    },
     {
       path: 'search',
       pathMatch: 'full',
@@ -226,7 +226,7 @@ export class AuthGuard implements CanActivate {
       path: 'vendors/:characterId/:tab',
       pathMatch: 'full',
       canActivate: [AuthGuard],
-      component: ResourcesComponent
+      component: VendorsContainerComponent
     },
     {
       path: 'vendors/:characterId',
@@ -237,7 +237,7 @@ export class AuthGuard implements CanActivate {
       path: 'vendors',
       pathMatch: 'full',
       canActivate: [AuthGuard],
-      component: ResourcesComponent
+      component: VendorsContainerComponent
     },
     {
       path: 'history/:platform/:memberId/:characterId',
@@ -375,7 +375,7 @@ export class AuthGuard implements CanActivate {
           children: [
             {
               path: '',
-              redirectTo: 'tree',
+              redirectTo: 'seasons',
               pathMatch: 'full'
             },
             {

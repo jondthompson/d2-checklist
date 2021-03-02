@@ -197,6 +197,9 @@ mat-form-field.full-width .mat-form-field-infix{
 
 .pres-node-prog {
   max-width: 100px;
+  
+  margin-top: 5px;
+  margin-bottom: 10px;
 }
 
 .hide-complete-triumphs {
@@ -259,11 +262,15 @@ mat-form-field.full-width .mat-form-field-infix{
 }
 
 .pad-left-more{
-  margin-left: 15px;
+  margin-left: 15px !important;
 }
 
 .pad-right{
   margin-right: 5px;
+}
+
+.pad-bottom{
+  margin-bottom: 5px;
 }
 
 
@@ -431,4 +438,28 @@ mat-form-field.full-width .mat-form-field-infix{
 
 .nitro-consent-link a::before{
   content: "| ";
+}
+
+
+.deal-label {
+  font-size: 12px;
+  font-weight: 400;
+  margin: 3px 0px 5px 0px;
+  max-width: 75px;
+}
+
+.deal-label {
+  font-size: 12px;
+  font-weight: 400;
+  margin: 3px 0px 5px 0px;
+  max-width: 75px;
+}
+
+.vendor-deal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(124,124,124);
+  // opacity: 0.5;
+  margin: 3px 0px 5px 0px;
+  max-width: 75px;
 }

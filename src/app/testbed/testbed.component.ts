@@ -1,15 +1,25 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
+import { IconService } from '@app/service/icon.service';
+import { SignedOnUserService } from '@app/service/signed-on-user.service';
+import { StorageService } from '@app/service/storage.service';
+import { ChildComponent } from '@app/shared/child.component';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-testbed',
   templateUrl: './testbed.component.html',
   styleUrls: ['./testbed.component.scss']
 })
-export class TestbedComponent implements OnInit {
+export class TestbedComponent extends ChildComponent implements OnInit, OnDestroy {
 
-  constructor() { }
+  constructor(
+    storageService: StorageService,
+    public signedOnUserService: SignedOnUserService,
+    public iconService: IconService) {
+    super(storageService);
+
+  }
 
   ngOnInit(): void {
   }
-
 }

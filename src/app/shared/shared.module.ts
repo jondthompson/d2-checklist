@@ -15,6 +15,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import {MatDividerModule} from '@angular/material/divider';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -46,6 +47,11 @@ import { TriumphNameComponent } from './triumph-name/triumph-name.component';
 import { AdSlotComponent } from './ad-slot/ad-slot.component';
 import { AdUnitComponent } from './ad-slot/ad-unit/ad-unit.component';
 import { NitroUnitComponent } from './ad-slot/nitro-unit/nitro-unit.component';
+import { SignedOnLoadingIconComponent } from './signed-on-loading-icon/signed-on-loading-icon.component';
+import { ManifestItemIconComponent } from './manifest-item-icon/manifest-item-icon.component';
+import { HorizontalSortComponent } from '@app/gear/gear/gear-compare-dialog/horizontal-sort/horizontal-sort.component';
+import { LegendaryLostSectorComponent } from './legendary-lost-sector/legendary-lost-sector.component';
+import { LostSectorNextDaysComponent } from './lost-sector-next-days/lost-sector-next-days.component';
 
 @NgModule({
   imports: [
@@ -53,7 +59,7 @@ import { NitroUnitComponent } from './ad-slot/nitro-unit/nitro-unit.component';
     CommonModule,
     FormsModule,
     FontAwesomeModule,
-    MomentModule,    
+    MomentModule,
     MatButtonModule,
     MatToolbarModule,
     MatSelectModule,
@@ -69,6 +75,7 @@ import { NitroUnitComponent } from './ad-slot/nitro-unit/nitro-unit.component';
     MatCheckboxModule,
     MatAutocompleteModule,
     MatListModule,
+    MatDividerModule,
     MatMenuModule,
     MatTreeModule,
     MatIconModule,
@@ -90,20 +97,29 @@ import { NitroUnitComponent } from './ad-slot/nitro-unit/nitro-unit.component';
     SortIndicatorComponent,
     ItemEnergyIndicatorComponent,
     ItemIconComponent,
+    HorizontalSortComponent,
     FriendStarComponent,
     FriendStarComponent,
     TriumphNameComponent,
     AdSlotComponent,
     AdUnitComponent,
-    NitroUnitComponent],
+    NitroUnitComponent,
+    SignedOnLoadingIconComponent,
+    ManifestItemIconComponent,
+    LegendaryLostSectorComponent,
+    LostSectorNextDaysComponent],
   exports: [
     SortIndicatorComponent,
+    HorizontalSortComponent,
+    ManifestItemIconComponent,
     TriumphNameComponent,
     ItemIconComponent,
     FriendStarComponent,
     SeasonIndicatorComponent,
     AdSlotComponent,
     ItemEnergyIndicatorComponent,
+    SignedOnLoadingIconComponent,
+    LegendaryLostSectorComponent,
     RouterModule,
     PipeModule,
     CommonModule,
@@ -127,6 +143,7 @@ import { NitroUnitComponent } from './ad-slot/nitro-unit/nitro-unit.component';
     MatDialogModule,
     MatSidenavModule,
     MatListModule,
+    MatDividerModule,
     MatBadgeModule,
     MatSelectModule,
     MatToolbarModule,

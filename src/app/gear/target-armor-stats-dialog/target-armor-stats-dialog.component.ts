@@ -6,13 +6,12 @@ import { MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { DestinyClasses } from '@app/service/model';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'd2c-target-armor-stats-dialog',
   templateUrl: './target-armor-stats-dialog.component.html',
-  styleUrls: ['./target-armor-stats-dialog.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./target-armor-stats-dialog.component.scss']
 })
 export class TargetArmorStatsDialogComponent implements OnInit {
-  parent: GearComponent;
   preferred: PreferredStats;
   targetChoices: string[];
   destinyClasses = DestinyClasses;
@@ -21,7 +20,6 @@ export class TargetArmorStatsDialogComponent implements OnInit {
     public preferredStatService: PreferredStatService,
     public dialogRef: MatDialogRef<TargetArmorStatsDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any) {
-    this.parent = data.parent;
     this.preferred = this.preferredStatService.stats.value;
     dialogRef.afterClosed().subscribe(result => {
       if (!result) {
